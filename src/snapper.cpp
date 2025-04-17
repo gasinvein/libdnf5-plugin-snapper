@@ -90,6 +90,7 @@ private:
 
     snapper::SCD get_scd(const libdnf5::base::Transaction & transaction) {
         snapper::SCD scd;
+        scd.cleanup = "number";
         scd.description = std::format("DNF transaction ({} package actions)", transaction.get_transaction_packages_count());
         for (auto pkg_action: transaction.get_transaction_packages()) {
             auto key = pkg_action.get_package().to_string();
