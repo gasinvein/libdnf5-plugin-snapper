@@ -35,6 +35,10 @@
 build
 .cache
 
+# RPM stuff
+/*-build
+/*.list
+
 # Python files
 .mypy_cache
 __pycache__
