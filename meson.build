@@ -16,6 +16,14 @@ conf_data.set('VERSION_MINOR', project_version_list[1])
 conf_data.set('VERSION_MICRO', project_version_list[2])
 configure_file(output: 'config.hpp', configuration: conf_data)
 
+configure_file(
+  input: 'config/snapper.conf.in',
+  output: 'snapper.conf',
+  configuration: {},
+  install_dir: join_paths(get_option('sysconfdir'), 'dnf', 'libdnf5-plugins'),
+  install: true
+)
+
 shared_library(
   'snapper',
   'src/snapper.cpp',
