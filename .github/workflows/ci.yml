@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+
+      matrix:
+        container:
+          - registry.fedoraproject.org/fedora:latest
+          - registry.fedoraproject.org/fedora:rawhide
+
+    container:
+      image: ${{ matrix.container }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set platform ID
+        id: get-platform-id
+        run: |
+          . /etc/os-release
+          echo "platform=${ID}-${VERSION_ID}" >> $GITHUB_OUTPUT
+
+      - name: Install devel packages
+        run: |
+          dnf -y install rpmdevtools
+          dnf -y install 'dnf-command(builddep)'
+          dnf -y builddep ./libdnf5-plugin-snapper.spec
+
+      - name: Build package
+        run: >
+          rpmbuild -bb --build-in-place libdnf5-plugin-snapper.spec
+          --define "debug_package %nil"
+          --define "_topdir $PWD/rpmbuild"
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpmbuild-${{ steps.get-platform-id.outputs.platform }}
+          path: |
+            rpmbuild/RPMS/*/*
