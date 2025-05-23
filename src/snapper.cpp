@@ -92,11 +92,16 @@ private:
         snapper::SCD scd;
         scd.cleanup = "number";
         scd.description = std::format("DNF transaction ({} package actions)", transaction.get_transaction_packages_count());
-        for (auto pkg_action: transaction.get_transaction_packages()) {
-            auto key = pkg_action.get_package().to_string();
-            auto value = libdnf5::transaction::transaction_item_action_to_string(pkg_action.get_action());
-            scd.userdata.insert({key, value});
+
+        std::unordered_map<libdnf5::transaction::TransactionItemAction, int> actions_count;
+        for (const auto & pkg_action: transaction.get_transaction_packages()) {
+            ++actions_count[pkg_action.get_action()];
         }
+        for (const auto & [action, count] : actions_count) {
+            auto action_name = libdnf5::transaction::transaction_item_action_to_string(action);
+            scd.userdata[std::format("rpm:{}", action_name)] = std::to_string(count);
+        }
+
         return scd;
     }
 };
