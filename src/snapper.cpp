@@ -1,5 +1,8 @@
+#include <cassert>
 #include <libdnf5/base/base.hpp>
 #include <libdnf5/base/transaction.hpp>
+#include <libdnf5/conf/config.hpp>
+#include <libdnf5/conf/config_main.hpp>
 #include <libdnf5/conf/const.hpp>
 #include <libdnf5/plugin/iplugin.hpp>
 
@@ -47,10 +50,10 @@ public:
     }
 
     void init() override {
-        const auto & dnf_config = get_base().get_config();
+        dnf_config = & get_base().get_config();
         auto & logger = *get_base().get_logger();
         try {
-            snpr = new snapper::Snapper("root", dnf_config.get_installroot_option().get_value_string());
+            snpr = new snapper::Snapper("root", dnf_config->get_installroot_option().get_value_string());
             logger.info("Snapper plugin: using config \"{}\" at {}", snpr->configName(), snpr->subvolumeDir());
         } catch (snapper::ConfigNotFoundException & exception) {
             logger.warning("Snapper plugin: failed to init: {}", exception.what());
@@ -87,16 +90,30 @@ private:
     snapper::Snapper * snpr = nullptr;
     snapper::Snapshots::iterator pre_snapshot;
     snapper::Snapshots::iterator post_snapshot;
+    libdnf5::ConfigMain * dnf_config = nullptr;
 
     snapper::SCD get_scd(const libdnf5::base::Transaction & transaction) {
+        assert(dnf_config != nullptr);
         snapper::SCD scd;
+        bool is_important = false;
         scd.cleanup = "number";
         scd.description = std::format("DNF transaction ({} package actions)", transaction.get_transaction_packages_count());
 
         std::unordered_map<libdnf5::transaction::TransactionItemAction, int> actions_count;
+
         for (const auto & pkg_action: transaction.get_transaction_packages()) {
             ++actions_count[pkg_action.get_action()];
+            for (auto protected_pkg_name : dnf_config->get_protected_packages_option().get_value()) {
+                if (pkg_action.get_package().get_name() == protected_pkg_name) {
+                    is_important = true;
+                }
+            }
         }
+
+        if (is_important) {
+            scd.userdata["important"] = "yes";
+        }
+
         for (const auto & [action, count] : actions_count) {
             auto action_name = libdnf5::transaction::transaction_item_action_to_string(action);
             scd.userdata[std::format("rpm:{}", action_name)] = std::to_string(count);
