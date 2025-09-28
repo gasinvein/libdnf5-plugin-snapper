@@ -1,10 +1,5 @@
 #include <cassert>
 #include <libdnf5/base/base.hpp>
-#include <libdnf5/base/transaction.hpp>
-#include <libdnf5/conf/config.hpp>
-#include <libdnf5/conf/config_main.hpp>
-#include <libdnf5/conf/const.hpp>
-#include <libdnf5/conf/option_string_list.hpp>
 #include <libdnf5/plugin/iplugin.hpp>
 
 #include <snapper/Snapper.h>
@@ -12,13 +7,11 @@
 
 #include "config.hpp"
 
-using namespace libdnf5;
-
 namespace {
 
 constexpr const char * PLUGIN_NAME = "snapper";
-constexpr plugin::Version PLUGIN_VERSION {VERSION_MAJOR, VERSION_MINOR, VERSION_MICRO};
-constexpr PluginAPIVersion REQUIRED_PLUGIN_API_VERSION {.major = 2, .minor = 0};
+constexpr libdnf5::plugin::Version PLUGIN_VERSION {VERSION_MAJOR, VERSION_MINOR, VERSION_MICRO};
+constexpr libdnf5::PluginAPIVersion REQUIRED_PLUGIN_API_VERSION {.major = 2, .minor = 0};
     
 constexpr const char * attrs[] {
     "author.name", "author.email", "description", nullptr
@@ -28,16 +21,16 @@ constexpr const char * attrs_value[] {
 };
 
 
-class SnapperPlugin : public plugin::IPlugin {
+class SnapperPlugin : public libdnf5::plugin::IPlugin {
 public:
     SnapperPlugin(libdnf5::plugin::IPluginData & data, libdnf5::ConfigParser &) : IPlugin(data) {}
     virtual ~SnapperPlugin() = default;
 
-    PluginAPIVersion get_api_version() const noexcept override { return REQUIRED_PLUGIN_API_VERSION; }
+    libdnf5::PluginAPIVersion get_api_version() const noexcept override { return REQUIRED_PLUGIN_API_VERSION; }
 
     const char * get_name() const noexcept override { return PLUGIN_NAME; }
 
-    plugin::Version get_version() const noexcept override { return PLUGIN_VERSION; }
+    libdnf5::plugin::Version get_version() const noexcept override { return PLUGIN_VERSION; }
 
     const char * const * get_attributes() const noexcept override { return attrs; }
 
@@ -134,7 +127,7 @@ std::exception_ptr last_exception;
 
 }  // namespace
 
-PluginAPIVersion libdnf_plugin_get_api_version(void) {
+libdnf5::PluginAPIVersion libdnf_plugin_get_api_version(void) {
     return REQUIRED_PLUGIN_API_VERSION;
 }
 
@@ -142,12 +135,12 @@ const char * libdnf_plugin_get_name(void) {
     return PLUGIN_NAME;
 }
 
-plugin::Version libdnf_plugin_get_version(void) {
+libdnf5::plugin::Version libdnf_plugin_get_version(void) {
     return PLUGIN_VERSION;
 }
 
-plugin::IPlugin * libdnf_plugin_new_instance(
-    [[maybe_unused]] LibraryVersion library_version,
+libdnf5::plugin::IPlugin * libdnf_plugin_new_instance(
+    [[maybe_unused]] libdnf5::LibraryVersion library_version,
     libdnf5::plugin::IPluginData & data,
     libdnf5::ConfigParser & parser) try {
     return new SnapperPlugin(data, parser);
@@ -156,7 +149,7 @@ plugin::IPlugin * libdnf_plugin_new_instance(
     return nullptr;
 }
 
-void libdnf_plugin_delete_instance(plugin::IPlugin * plugin_object) {
+void libdnf_plugin_delete_instance(libdnf5::plugin::IPlugin * plugin_object) {
     delete plugin_object;
 }
 
