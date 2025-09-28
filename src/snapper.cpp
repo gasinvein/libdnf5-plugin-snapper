@@ -4,6 +4,7 @@
 #include <libdnf5/conf/config.hpp>
 #include <libdnf5/conf/config_main.hpp>
 #include <libdnf5/conf/const.hpp>
+#include <libdnf5/conf/option_string_list.hpp>
 #include <libdnf5/plugin/iplugin.hpp>
 
 #include <snapper/Snapper.h>
@@ -95,18 +96,24 @@ private:
     snapper::SCD get_scd(const libdnf5::base::Transaction & transaction) {
         assert(dnf_config != nullptr);
         snapper::SCD scd;
-        bool is_important = false;
+
+        const auto protected_pkgs = dnf_config->get_protected_packages_option().get_value();
+        const auto installonly_pkgs = dnf_config->get_installonlypkgs_option().get_value();
+
         scd.cleanup = "number";
         scd.description = std::format("DNF transaction ({} package actions)", transaction.get_transaction_packages_count());
 
+        bool is_important = false;
         std::unordered_map<libdnf5::transaction::TransactionItemAction, int> actions_count;
 
         for (const auto & pkg_action: transaction.get_transaction_packages()) {
             ++actions_count[pkg_action.get_action()];
-            for (auto protected_pkg_name : dnf_config->get_protected_packages_option().get_value()) {
-                if (pkg_action.get_package().get_name() == protected_pkg_name) {
-                    is_important = true;
-                }
+
+            auto pkg_name = pkg_action.get_package().get_name();
+
+            if ((std::find(protected_pkgs.begin(), protected_pkgs.end(), pkg_name) != protected_pkgs.end()) ||
+                (std::find(installonly_pkgs.begin(), installonly_pkgs.end(), pkg_name) != installonly_pkgs.end())) {
+                is_important = true;
             }
         }
 
