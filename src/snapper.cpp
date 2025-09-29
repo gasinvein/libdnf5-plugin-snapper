@@ -44,54 +44,48 @@ public:
     }
 
     void init() override {
-        dnf_config = & get_base().get_config();
-        auto & logger = *get_base().get_logger();
         try {
-            snpr = new snapper::Snapper("root", dnf_config->get_installroot_option().get_value_string());
-            logger.info("Snapper plugin: using config \"{}\" at {}", snpr->configName(), snpr->subvolumeDir());
+            snpr.emplace("root", get_base().get_config().get_installroot_option().get_value_string());
+            get_base().get_logger()->info("Snapper plugin: using config \"{}\" at {}", snpr->configName(), snpr->subvolumeDir());
         } catch (snapper::ConfigNotFoundException & exception) {
-            logger.warning("Snapper plugin: failed to init: {}", exception.what());
+            get_base().get_logger()->warning("Snapper plugin: failed to init: {}", exception.what());
         }
     }
 
     void pre_transaction(const libdnf5::base::Transaction & transaction) override {
-        auto & logger = *get_base().get_logger();
         snapper::Plugins::Report report;
         auto scd = get_transaction_scd(transaction);
         if (snpr) {
-            logger.debug("Snapper plugin: creating pre snapshot");
+            get_base().get_logger()->debug("Snapper plugin: creating pre snapshot");
             pre_snapshot = snpr->createPreSnapshot(scd, report);
-            logger.info("Snapper plugin: created pre snapshot {}", pre_snapshot->getNum());
+            get_base().get_logger()->info("Snapper plugin: created pre snapshot {}", pre_snapshot->getNum());
         } else {
-            logger.info("Snapper plugin: no Snapper - not creating pre snapshot");
+            get_base().get_logger()->info("Snapper plugin: no Snapper - not creating pre snapshot");
         }
     }
 
     void post_transaction(const libdnf5::base::Transaction & transaction) override {
-        auto & logger = *get_base().get_logger();
         snapper::Plugins::Report report;
         auto scd = get_transaction_scd(transaction);
         if (snpr) {
-            logger.debug("Snapper plugin: creating post snapshot");
+            get_base().get_logger()->debug("Snapper plugin: creating post snapshot");
             post_snapshot = snpr->createPostSnapshot(pre_snapshot, scd, report);
-            logger.info("Snapper plugin: created post snapshot {}", post_snapshot->getNum());
+            get_base().get_logger()->info("Snapper plugin: created post snapshot {}", post_snapshot->getNum());
         } else {
-            logger.info("Snapper plugin: no Snapper - not creating post snapshot");
+            get_base().get_logger()->info("Snapper plugin: no Snapper - not creating post snapshot");
         }
     }
 
 private:
-    snapper::Snapper * snpr = nullptr;
+    std::optional<snapper::Snapper> snpr;
     snapper::Snapshots::iterator pre_snapshot;
     snapper::Snapshots::iterator post_snapshot;
-    libdnf5::ConfigMain * dnf_config = nullptr;
 
     snapper::SCD get_transaction_scd(const libdnf5::base::Transaction & transaction) {
-        assert(dnf_config != nullptr);
         snapper::SCD scd;
 
-        const auto protected_pkgs = dnf_config->get_protected_packages_option().get_value();
-        const auto installonly_pkgs = dnf_config->get_installonlypkgs_option().get_value();
+        const auto protected_pkgs = get_base().get_config().get_protected_packages_option().get_value();
+        const auto installonly_pkgs = get_base().get_config().get_installonlypkgs_option().get_value();
 
         scd.cleanup = "number";
         scd.description = std::format("DNF transaction ({} package actions)", transaction.get_transaction_packages_count());
