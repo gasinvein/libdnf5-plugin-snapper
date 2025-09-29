@@ -94,6 +94,11 @@ private:
         std::unordered_map<libdnf5::transaction::TransactionItemAction, int> actions_count;
 
         for (const auto & pkg_action: transaction.get_transaction_packages()) {
+            if ((pkg_action.get_action() == libdnf5::transaction::TransactionItemAction::REPLACED) ||
+                (pkg_action.get_action() == libdnf5::transaction::TransactionItemAction::REASON_CHANGE)) {
+                continue;
+            }
+
             ++actions_count[pkg_action.get_action()];
 
             auto pkg_name = pkg_action.get_package().get_name();
