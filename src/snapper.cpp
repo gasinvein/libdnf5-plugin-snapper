@@ -57,7 +57,7 @@ public:
     void pre_transaction(const libdnf5::base::Transaction & transaction) override {
         auto & logger = *get_base().get_logger();
         snapper::Plugins::Report report;
-        auto scd = get_scd(transaction);
+        auto scd = get_transaction_scd(transaction);
         if (snpr) {
             logger.debug("Snapper plugin: creating pre snapshot");
             pre_snapshot = snpr->createPreSnapshot(scd, report);
@@ -70,7 +70,7 @@ public:
     void post_transaction(const libdnf5::base::Transaction & transaction) override {
         auto & logger = *get_base().get_logger();
         snapper::Plugins::Report report;
-        auto scd = get_scd(transaction);
+        auto scd = get_transaction_scd(transaction);
         if (snpr) {
             logger.debug("Snapper plugin: creating post snapshot");
             post_snapshot = snpr->createPostSnapshot(pre_snapshot, scd, report);
@@ -86,7 +86,7 @@ private:
     snapper::Snapshots::iterator post_snapshot;
     libdnf5::ConfigMain * dnf_config = nullptr;
 
-    snapper::SCD get_scd(const libdnf5::base::Transaction & transaction) {
+    snapper::SCD get_transaction_scd(const libdnf5::base::Transaction & transaction) {
         assert(dnf_config != nullptr);
         snapper::SCD scd;
 
