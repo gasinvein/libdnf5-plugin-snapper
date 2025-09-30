@@ -88,10 +88,8 @@ private:
         const auto installonly_pkgs = get_base().get_config().get_installonlypkgs_option().get_value();
 
         scd.cleanup = "number";
-        scd.description = std::format("DNF transaction ({} package actions)", transaction.get_transaction_packages_count());
 
-        bool is_important = false;
-        std::unordered_map<libdnf5::transaction::TransactionItemAction, int> actions_count;
+        std::map<libdnf5::transaction::TransactionItemAction, int> actions_count;
 
         for (const auto & pkg_action: transaction.get_transaction_packages()) {
             if ((pkg_action.get_action() == libdnf5::transaction::TransactionItemAction::REPLACED) ||
@@ -105,18 +103,22 @@ private:
 
             if ((std::find(protected_pkgs.begin(), protected_pkgs.end(), pkg_name) != protected_pkgs.end()) ||
                 (std::find(installonly_pkgs.begin(), installonly_pkgs.end(), pkg_name) != installonly_pkgs.end())) {
-                is_important = true;
+                scd.userdata["important"] = "yes";
             }
         }
 
-        if (is_important) {
-            scd.userdata["important"] = "yes";
+        std::string actions_summary;
+
+        bool is_first_item = true;
+        for (const auto & [action, count] : actions_count) {
+            if (!is_first_item) {
+                actions_summary += ", ";
+            }
+            is_first_item = false;
+            actions_summary += std::format("{} {}", libdnf5::transaction::transaction_item_action_to_string(action), count);
         }
 
-        for (const auto & [action, count] : actions_count) {
-            auto action_name = libdnf5::transaction::transaction_item_action_to_string(action);
-            scd.userdata[std::format("rpm:{}", action_name)] = std::to_string(count);
-        }
+        scd.description = std::format("DNF ({})", actions_summary);
 
         return scd;
     }
