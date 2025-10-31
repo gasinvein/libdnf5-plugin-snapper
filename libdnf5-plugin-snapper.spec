@@ -1,6 +1,10 @@
+%global commit      %(%{__git} rev-parse HEAD)
+%global shortcommit %(c=%{commit}; echo ${c:0:7})
+%global date        %(date -d "@$(%{__git} show -s --format='format:%%ct')" +'%%Y%%m%%d')
+
 Name:           libdnf5-plugin-snapper
 Version:        0.1.0
-Release:        0%{?dist}
+Release:        0.%{date}git%{shortcommit}%{?dist}
 Summary:        Snapper plugin for libdnf5
 
 License:        LGPL-2.1

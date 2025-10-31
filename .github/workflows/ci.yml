@@ -22,7 +22,18 @@ jobs:
       image: ${{ matrix.container }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Install Git
+        run: |
+          dnf -y install git
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          set-safe-directory: 'true'
+
+      - name: Configure git
+        run: |
+          git config --global --add safe.directory "$(pwd)"
 
       - name: Set platform ID
         id: get-platform-id
