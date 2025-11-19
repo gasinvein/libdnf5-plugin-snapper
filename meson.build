@@ -1,6 +1,6 @@
 project(
   'libdnf5-plugin-snapper', 'cpp',
-  version : '0.1.0',
+  version : '0.2.0',
   default_options : ['warning_level=3', 'cpp_std=c++20']
 )
 
@@ -14,12 +14,14 @@ conf_data = configuration_data()
 conf_data.set('VERSION_MAJOR', project_version_list[0])
 conf_data.set('VERSION_MINOR', project_version_list[1])
 conf_data.set('VERSION_MICRO', project_version_list[2])
+conf_data.set('DEFAULT_PROTECTED_ARE_IMPORTANT', 'true')
+conf_data.set('DEFAULT_INSTALLONLY_ARE_IMPORTANT', 'true')
 configure_file(output: 'config.hpp', configuration: conf_data)
 
 configure_file(
   input: 'config/snapper.conf.in',
   output: 'snapper.conf',
-  configuration: {},
+  configuration: conf_data,
   install_dir: join_paths(get_option('sysconfdir'), 'dnf', 'libdnf5-plugins'),
   install: true
 )

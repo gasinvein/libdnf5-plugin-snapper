@@ -1,3 +1,14 @@
 [main]
 name = snapper
 enabled = 1
+
+[snapper]
+# Snapper config name for the root directory
+# Default: root
+config = root
+# Whether to mark snaphost as important if protected packages affected by transaction
+# Default: @DEFAULT_PROTECTED_ARE_IMPORTANT@
+protected_are_important = @DEFAULT_PROTECTED_ARE_IMPORTANT@
+# Whether to mark snaphost as important if install-only (e.g. kernel) packages affected by transaction
+# Default: @DEFAULT_INSTALLONLY_ARE_IMPORTANT@
+installonly_are_important = @DEFAULT_INSTALLONLY_ARE_IMPORTANT@

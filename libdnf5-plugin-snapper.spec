@@ -3,7 +3,7 @@
 %global date        %(date -d "@$(%{__git} show -s --format='format:%%ct')" +'%%Y%%m%%d')
 
 Name:           libdnf5-plugin-snapper
-Version:        0.1.0
+Version:        0.2.0
 Release:        0.%{date}git%{shortcommit}%{?dist}
 Summary:        Snapper plugin for libdnf5
 

@@ -23,7 +23,7 @@ constexpr const char * attrs_value[] {
 
 class SnapperPlugin : public libdnf5::plugin::IPlugin {
 public:
-    SnapperPlugin(libdnf5::plugin::IPluginData & data, libdnf5::ConfigParser &) : IPlugin(data) {}
+    SnapperPlugin(libdnf5::plugin::IPluginData & data, libdnf5::ConfigParser & config) : IPlugin(data), config(config) {}
     virtual ~SnapperPlugin() = default;
 
     libdnf5::PluginAPIVersion get_api_version() const noexcept override { return REQUIRED_PLUGIN_API_VERSION; }
@@ -44,8 +44,14 @@ public:
     }
 
     void init() override {
+        std::string snapper_config_name;
+        if (config.has_option("snapper", "config")) {
+            snapper_config_name = config.get_value("snapper", "config");
+        } else {
+            snapper_config_name = "root";
+        }
         try {
-            snpr.emplace("root", get_base().get_config().get_installroot_option().get_value_string());
+            snpr.emplace(snapper_config_name, get_base().get_config().get_installroot_option().get_value_string());
             get_base().get_logger()->info("Snapper plugin: using config \"{}\" at {}", snpr->configName(), snpr->subvolumeDir());
         } catch (snapper::ConfigNotFoundException & exception) {
             get_base().get_logger()->warning("Snapper plugin: failed to init: {}", exception.what());
@@ -77,6 +83,7 @@ public:
     }
 
 private:
+    libdnf5::ConfigParser & config;
     std::optional<snapper::Snapper> snpr;
     snapper::Snapshots::iterator pre_snapshot;
     snapper::Snapshots::iterator post_snapshot;
@@ -84,8 +91,18 @@ private:
     snapper::SCD get_transaction_scd(const libdnf5::base::Transaction & transaction) {
         snapper::SCD scd;
 
-        const auto protected_pkgs = get_base().get_config().get_protected_packages_option().get_value();
-        const auto installonly_pkgs = get_base().get_config().get_installonlypkgs_option().get_value();
+        std::vector<std::string> protected_pkgs;
+        std::vector<std::string> installonly_pkgs;
+
+        auto protected_are_important = libdnf5::OptionBool(DEFAULT_PROTECTED_ARE_IMPORTANT)
+                                             .from_string(config.get_value("snapper", "protected_are_important"));
+        auto installonly_are_important = libdnf5::OptionBool(DEFAULT_INSTALLONLY_ARE_IMPORTANT)
+                                               .from_string(config.get_value("snapper", "installonly_are_important"));
+
+        if (protected_are_important)
+            protected_pkgs = get_base().get_config().get_protected_packages_option().get_value();
+        if (installonly_are_important)
+            installonly_pkgs = get_base().get_config().get_installonlypkgs_option().get_value();
 
         scd.cleanup = "number";
 
@@ -101,10 +118,12 @@ private:
 
             auto pkg_name = pkg_action.get_package().get_name();
 
-            if ((std::find(protected_pkgs.begin(), protected_pkgs.end(), pkg_name) != protected_pkgs.end()) ||
-                (std::find(installonly_pkgs.begin(), installonly_pkgs.end(), pkg_name) != installonly_pkgs.end())) {
+            if ((protected_are_important) &&
+                (std::find(protected_pkgs.begin(), protected_pkgs.end(), pkg_name) != protected_pkgs.end()))
                 scd.userdata["important"] = "yes";
-            }
+            if ((installonly_are_important) && 
+                (std::find(installonly_pkgs.begin(), installonly_pkgs.end(), pkg_name) != installonly_pkgs.end()))
+                scd.userdata["important"] = "yes";
         }
 
         std::string actions_summary;
