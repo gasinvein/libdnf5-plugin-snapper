@@ -20,6 +20,43 @@ constexpr const char * attrs_value[] {
     "Sergei von Alis", "gasinvein@gmail.com", "Snapper Plugin."
 };
 
+std::string join_strings(const std::vector<std::string>& vector, const std::string& separator)
+{
+    std::string out;
+
+    auto is_first_item = true;
+    for (auto & str : vector) {
+        if (!is_first_item) {
+            out += separator;
+        }
+        is_first_item = false;
+        out += str;
+    }
+
+    return out;
+}
+
+std::vector<std::string> find_names_in_transaction(const libdnf5::base::Transaction & transaction, const std::vector<std::string> & package_names) {
+    std::vector<std::string> out;
+
+    for (auto & pkg_action : transaction.get_transaction_packages()) {
+        auto found_name = std::find(package_names.begin(), package_names.end(), pkg_action.get_package().get_name());
+        if (found_name != package_names.end()) {
+            out.push_back(pkg_action.get_package().get_full_nevra());
+            continue;
+        }
+
+        for (auto provided : pkg_action.get_package().get_provides()) {
+            auto found_provided = std::find(package_names.begin(), package_names.end(), provided.get_name());
+            if (found_provided != package_names.end()) {
+                out.push_back(pkg_action.get_package().get_full_nevra());
+                break;
+            }
+        }
+    }
+
+    return out;
+}
 
 class SnapperPlugin : public libdnf5::plugin::IPlugin {
 public:
@@ -91,18 +128,29 @@ private:
     snapper::SCD get_transaction_scd(const libdnf5::base::Transaction & transaction) {
         snapper::SCD scd;
 
-        std::vector<std::string> protected_pkgs;
-        std::vector<std::string> installonly_pkgs;
-
         auto protected_are_important = libdnf5::OptionBool(DEFAULT_PROTECTED_ARE_IMPORTANT)
                                              .from_string(config.get_value("snapper", "protected_are_important"));
         auto installonly_are_important = libdnf5::OptionBool(DEFAULT_INSTALLONLY_ARE_IMPORTANT)
                                                .from_string(config.get_value("snapper", "installonly_are_important"));
 
-        if (protected_are_important)
-            protected_pkgs = get_base().get_config().get_protected_packages_option().get_value();
-        if (installonly_are_important)
-            installonly_pkgs = get_base().get_config().get_installonlypkgs_option().get_value();
+        if (protected_are_important) {
+            auto affected_protected_pkgs = find_names_in_transaction(transaction,
+                                                                     get_base().get_config().get_protected_packages_option().get_value());
+            if (!affected_protected_pkgs.empty()) {
+                get_base().get_logger()->info("Snapper plugin: Affected protected packages: {}",
+                                              join_strings(affected_protected_pkgs, " "));
+                scd.userdata["important"] = "yes";
+            }
+        }
+        if (installonly_are_important) {
+            auto affected_installonly_pkgs = find_names_in_transaction(transaction,
+                                                                       get_base().get_config().get_installonlypkgs_option().get_value());
+            if (!affected_installonly_pkgs.empty()) {
+                get_base().get_logger()->info("Snapper plugin: Affected installonly packages: {}",
+                                              join_strings(affected_installonly_pkgs, " "));
+                scd.userdata["important"] = "yes";
+            }
+        }
 
         scd.cleanup = "number";
 
@@ -115,29 +163,14 @@ private:
             }
 
             ++actions_count[pkg_action.get_action()];
-
-            auto pkg_name = pkg_action.get_package().get_name();
-
-            if ((protected_are_important) &&
-                (std::find(protected_pkgs.begin(), protected_pkgs.end(), pkg_name) != protected_pkgs.end()))
-                scd.userdata["important"] = "yes";
-            if ((installonly_are_important) && 
-                (std::find(installonly_pkgs.begin(), installonly_pkgs.end(), pkg_name) != installonly_pkgs.end()))
-                scd.userdata["important"] = "yes";
         }
 
-        std::string actions_summary;
+        std::vector<std::string> actions_count_strings;
 
-        bool is_first_item = true;
-        for (const auto & [action, count] : actions_count) {
-            if (!is_first_item) {
-                actions_summary += ", ";
-            }
-            is_first_item = false;
-            actions_summary += std::format("{} {}", libdnf5::transaction::transaction_item_action_to_string(action), count);
-        }
+        for (const auto & [action, count] : actions_count)
+            actions_count_strings.push_back(std::format("{} {}", libdnf5::transaction::transaction_item_action_to_string(action), count));
 
-        scd.description = std::format("DNF ({})", actions_summary);
+        scd.description = std::format("DNF ({})", join_strings(actions_count_strings, ", "));
 
         return scd;
     }
